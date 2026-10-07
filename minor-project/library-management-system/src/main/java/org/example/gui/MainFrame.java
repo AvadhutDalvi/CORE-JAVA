@@ -94,6 +94,8 @@ public class MainFrame extends JFrame {
         button.setFocusPainted(false);
         button.setForeground(new Color(236, 240, 241));
         button.setBackground(new Color(41, 128, 185));
+        button.setOpaque(true);
+        button.setBorderPainted(false);
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
         button.setPreferredSize(new Dimension(130, 32));
         return button;
