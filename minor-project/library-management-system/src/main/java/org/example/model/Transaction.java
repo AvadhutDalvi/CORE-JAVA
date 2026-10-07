@@ -100,4 +100,36 @@ public class Transaction {
     public void setStatus(String status) {
         this.status = status;
     }
+
+    /**
+     * Checks dynamically whether the borrowed transaction is past its due date.
+     */
+    public boolean isOverdue() {
+        return "BORROWED".equalsIgnoreCase(status) &&
+                dueDate != null &&
+                dueDate.isBefore(LocalDate.now());
+    }
+
+    /**
+     * Returns dynamic display status without modifying database value.
+     */
+    public String getDisplayStatus() {
+        if (isOverdue()) {
+            return "OVERDUE";
+        }
+        return status != null ? status : "BORROWED";
+    }
+
+    @Override
+    public String toString() {
+        return "Transaction{" +
+                "transactionId=" + transactionId +
+                ", bookId=" + bookId +
+                ", memberId=" + memberId +
+                ", issueDate=" + issueDate +
+                ", dueDate=" + dueDate +
+                ", returnDate=" + returnDate +
+                ", status='" + status + '\'' +
+                '}';
+    }
 }

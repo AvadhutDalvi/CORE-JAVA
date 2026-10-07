@@ -1,0 +1,5 @@
+# MySQL Database Configuration Template
+# Copy this file to db.properties or set environment variables: DB_URL, DB_USER, DB_PASSWORD
+db.url=jdbc:mysql://localhost:3306/library_db
+db.user=root
+db.password=your_mysql_password

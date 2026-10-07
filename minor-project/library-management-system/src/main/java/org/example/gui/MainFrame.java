@@ -1,17 +1,20 @@
 package org.example.gui;
 
-
 import javax.swing.*;
 import java.awt.*;
 
 public class MainFrame extends JFrame {
 
     private JPanel contentPanel;
+    private JButton dashboardButton;
+    private JButton booksButton;
+    private JButton membersButton;
+    private JButton transactionsButton;
 
     public MainFrame() {
-
         setTitle("Library Management System");
-        setSize(1000, 650);
+        setSize(1050, 700);
+        setMinimumSize(new Dimension(880, 580));
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
@@ -19,72 +22,100 @@ public class MainFrame extends JFrame {
     }
 
     private void createLayout() {
+        // Top Header
+        JPanel topContainer = new JPanel(new BorderLayout());
+        topContainer.setBackground(new Color(44, 62, 80)); // Dark modern header
 
-        JLabel titleLabel = new JLabel(
-                "Library Management System",
-                SwingConstants.CENTER
-        );
+        JPanel titlePanel = new JPanel(new BorderLayout());
+        titlePanel.setOpaque(false);
+        titlePanel.setBorder(BorderFactory.createEmptyBorder(15, 20, 10, 20));
 
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 28));
+        JLabel titleLabel = new JLabel("Library Management System");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        titleLabel.setForeground(Color.WHITE);
 
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.add(titleLabel, BorderLayout.CENTER);
+        JLabel subtitleLabel = new JLabel("Minor Project — Core Java, Swing & JDBC");
+        subtitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        subtitleLabel.setForeground(new Color(189, 195, 199));
 
-        JPanel navigationPanel = new JPanel(new FlowLayout());
+        titlePanel.add(titleLabel, BorderLayout.NORTH);
+        titlePanel.add(subtitleLabel, BorderLayout.SOUTH);
 
-        JButton dashboardButton = new JButton("Dashboard");
-        JButton booksButton = new JButton("Books");
-        JButton membersButton = new JButton("Members");
-        JButton transactionsButton = new JButton("Transactions");
+        // Navigation Bar
+        JPanel navPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 8));
+        navPanel.setBackground(new Color(52, 73, 94));
 
-        navigationPanel.add(dashboardButton);
-        navigationPanel.add(booksButton);
-        navigationPanel.add(membersButton);
-        navigationPanel.add(transactionsButton);
+        dashboardButton = createNavButton("Dashboard");
+        booksButton = createNavButton("Books");
+        membersButton = createNavButton("Members");
+        transactionsButton = createNavButton("Transactions");
 
-        // Content area
+        navPanel.add(dashboardButton);
+        navPanel.add(booksButton);
+        navPanel.add(membersButton);
+        navPanel.add(transactionsButton);
+
+        topContainer.add(titlePanel, BorderLayout.NORTH);
+        topContainer.add(navPanel, BorderLayout.SOUTH);
+
+        // Content Area
         contentPanel = new JPanel(new BorderLayout());
+        contentPanel.add(new DashboardPanel(), BorderLayout.CENTER);
+        setActiveButton(dashboardButton);
 
-        contentPanel.add(
-                new DashboardPanel(),
-                BorderLayout.CENTER
-        );
+        // Button Listeners
+        dashboardButton.addActionListener(e -> {
+            setActiveButton(dashboardButton);
+            switchView(new DashboardPanel());
+        });
 
-        // Books button action
         booksButton.addActionListener(e -> {
-            contentPanel.removeAll();
-            contentPanel.add(new BookPanel(), BorderLayout.CENTER);
-            contentPanel.revalidate();
-            contentPanel.repaint();
+            setActiveButton(booksButton);
+            switchView(new BookPanel());
         });
 
         membersButton.addActionListener(e -> {
-            contentPanel.removeAll();
-            contentPanel.add(new MemberPanel(), BorderLayout.CENTER);
-            contentPanel.revalidate();
-            contentPanel.repaint();
+            setActiveButton(membersButton);
+            switchView(new MemberPanel());
         });
 
         transactionsButton.addActionListener(e -> {
-            contentPanel.removeAll();
-            contentPanel.add(new TransactionPanel(), BorderLayout.CENTER);
-            contentPanel.revalidate();
-            contentPanel.repaint();
+            setActiveButton(transactionsButton);
+            switchView(new TransactionPanel());
         });
 
-        dashboardButton.addActionListener(e -> {
-            contentPanel.removeAll();
-            contentPanel.add(new DashboardPanel(), BorderLayout.CENTER);
-            contentPanel.revalidate();
-            contentPanel.repaint();
-        });
-
-        JPanel topPanel = new JPanel(new BorderLayout());
-
-        topPanel.add(headerPanel, BorderLayout.NORTH);
-        topPanel.add(navigationPanel, BorderLayout.SOUTH);
-
-        add(topPanel, BorderLayout.NORTH);
+        add(topContainer, BorderLayout.NORTH);
         add(contentPanel, BorderLayout.CENTER);
+    }
+
+    private JButton createNavButton(String text) {
+        JButton button = new JButton(text);
+        button.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        button.setFocusPainted(false);
+        button.setForeground(new Color(236, 240, 241));
+        button.setBackground(new Color(41, 128, 185));
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        button.setPreferredSize(new Dimension(130, 32));
+        return button;
+    }
+
+    private void setActiveButton(JButton activeBtn) {
+        JButton[] buttons = {dashboardButton, booksButton, membersButton, transactionsButton};
+        for (JButton btn : buttons) {
+            if (btn == activeBtn) {
+                btn.setBackground(new Color(26, 188, 156)); // Turquoise active accent
+                btn.setForeground(Color.WHITE);
+            } else {
+                btn.setBackground(new Color(41, 128, 185)); // Default blue
+                btn.setForeground(new Color(236, 240, 241));
+            }
+        }
+    }
+
+    private void switchView(JPanel newView) {
+        contentPanel.removeAll();
+        contentPanel.add(newView, BorderLayout.CENTER);
+        contentPanel.revalidate();
+        contentPanel.repaint();
     }
 }

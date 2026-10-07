@@ -5,6 +5,7 @@ import org.example.util.DBConnection;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 
 public class DashboardDAO {
 
@@ -17,41 +18,34 @@ public class DashboardDAO {
     }
 
     public int getAvailableBooks() {
-        return getCount(
-                "SELECT COALESCE(SUM(available_quantity), 0) FROM books"
-        );
+        return getCount("SELECT COALESCE(SUM(available_quantity), 0) FROM books");
     }
 
     public int getIssuedBooks() {
-        return getCount(
-                "SELECT COUNT(*) FROM transactions WHERE status = 'BORROWED'"
-        );
+        return getCount("SELECT COUNT(*) FROM transactions WHERE status = 'BORROWED'");
     }
 
     public int getOverdueBooks() {
-        return getCount(
-                """
+        String sql = """
                 SELECT COUNT(*)
                 FROM transactions
                 WHERE status = 'BORROWED'
                   AND due_date < CURDATE()
-                """
-        );
+                """;
+        return getCount(sql);
     }
 
     private int getCount(String sql) {
-
         try (Connection connection = DBConnection.getConnection();
-             PreparedStatement statement =
-                     connection.prepareStatement(sql);
+             PreparedStatement statement = connection.prepareStatement(sql);
              ResultSet resultSet = statement.executeQuery()) {
 
             if (resultSet.next()) {
                 return resultSet.getInt(1);
             }
 
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (SQLException e) {
+            System.err.println("Database error in DashboardDAO: " + e.getMessage());
         }
 
         return 0;

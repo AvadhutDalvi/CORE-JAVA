@@ -1,10 +1,11 @@
 package org.example.gui;
 
-
 import org.example.model.Book;
 import org.example.service.BookService;
+import org.example.util.ValidationException;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.List;
@@ -25,10 +26,9 @@ public class BookPanel extends JPanel {
     private DefaultTableModel tableModel;
 
     public BookPanel() {
+        this.bookService = new BookService();
 
-        bookService = new BookService();
-
-        setLayout(new BorderLayout(10, 10));
+        setLayout(new BorderLayout(12, 12));
         setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
         createForm();
@@ -38,8 +38,11 @@ public class BookPanel extends JPanel {
     }
 
     private void createForm() {
+        JPanel formContainer = new JPanel(new BorderLayout(8, 8));
+        formContainer.setBorder(BorderFactory.createTitledBorder("Book Details"));
 
-        JPanel formPanel = new JPanel(new GridLayout(3, 4, 10, 10));
+        JPanel formGrid = new JPanel(new GridLayout(3, 4, 12, 10));
+        formGrid.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         titleField = new JTextField();
         authorField = new JTextField();
@@ -48,62 +51,75 @@ public class BookPanel extends JPanel {
         quantityField = new JTextField();
         yearField = new JTextField();
 
-        formPanel.add(new JLabel("Title:"));
-        formPanel.add(titleField);
+        formGrid.add(new JLabel("Title: *"));
+        formGrid.add(titleField);
 
-        formPanel.add(new JLabel("Author:"));
-        formPanel.add(authorField);
+        formGrid.add(new JLabel("Author: *"));
+        formGrid.add(authorField);
 
-        formPanel.add(new JLabel("Category:"));
-        formPanel.add(categoryField);
+        formGrid.add(new JLabel("Category:"));
+        formGrid.add(categoryField);
 
-        formPanel.add(new JLabel("ISBN:"));
-        formPanel.add(isbnField);
+        formGrid.add(new JLabel("ISBN:"));
+        formGrid.add(isbnField);
 
-        formPanel.add(new JLabel("Quantity:"));
-        formPanel.add(quantityField);
+        formGrid.add(new JLabel("Total Quantity: *"));
+        formGrid.add(quantityField);
 
-        formPanel.add(new JLabel("Published Year:"));
-        formPanel.add(yearField);
+        formGrid.add(new JLabel("Published Year: *"));
+        formGrid.add(yearField);
+
+        formContainer.add(formGrid, BorderLayout.CENTER);
+
+        // Buttons
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 8));
 
         JButton addButton = new JButton("Add Book");
         JButton updateButton = new JButton("Update Book");
         JButton deleteButton = new JButton("Delete Book");
+        JButton clearButton = new JButton("Clear Fields");
         JButton refreshButton = new JButton("Refresh");
-
-        JPanel buttonPanel = new JPanel(new FlowLayout());
 
         buttonPanel.add(addButton);
         buttonPanel.add(updateButton);
         buttonPanel.add(deleteButton);
+        buttonPanel.add(clearButton);
         buttonPanel.add(refreshButton);
 
-        JPanel topPanel = new JPanel(new BorderLayout(10, 10));
+        formContainer.add(buttonPanel, BorderLayout.SOUTH);
 
-        topPanel.add(formPanel, BorderLayout.CENTER);
-        topPanel.add(buttonPanel, BorderLayout.SOUTH);
-
-        add(topPanel, BorderLayout.NORTH);
+        add(formContainer, BorderLayout.NORTH);
 
         addButton.addActionListener(e -> addBook());
-        refreshButton.addActionListener(e -> loadBooks());
         updateButton.addActionListener(e -> updateBook());
         deleteButton.addActionListener(e -> deleteBook());
+        clearButton.addActionListener(e -> clearFields());
+        refreshButton.addActionListener(e -> {
+            searchField.setText("");
+            loadBooks();
+        });
     }
 
     private void createTable() {
+        JPanel tableContainer = new JPanel(new BorderLayout(8, 8));
+        tableContainer.setBorder(BorderFactory.createTitledBorder("Book Catalog"));
 
-        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-
-        searchField = new JTextField(25);
+        // Search Bar
+        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
+        searchField = new JTextField(24);
 
         JButton searchButton = new JButton("Search");
         JButton showAllButton = new JButton("Show All");
 
+        searchPanel.add(new JLabel("Search (Title / Author / ISBN / Category):"));
+        searchPanel.add(searchField);
+        searchPanel.add(searchButton);
+        searchPanel.add(showAllButton);
+
+        tableContainer.add(searchPanel, BorderLayout.NORTH);
+
         searchButton.addActionListener(e -> {
-
             String keyword = searchField.getText().trim();
-
             if (keyword.isEmpty()) {
                 loadBooks();
             } else {
@@ -116,24 +132,18 @@ public class BookPanel extends JPanel {
             loadBooks();
         });
 
-        searchPanel.add(new JLabel("Search:"));
-        searchPanel.add(searchField);
-        searchPanel.add(searchButton);
-        searchPanel.add(showAllButton);
-
         String[] columns = {
                 "ID",
                 "Title",
                 "Author",
                 "Category",
                 "ISBN",
-                "Quantity",
-                "Available",
+                "Total Qty",
+                "Available Qty",
                 "Year"
         };
 
         tableModel = new DefaultTableModel(columns, 0) {
-
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
@@ -141,116 +151,254 @@ public class BookPanel extends JPanel {
         };
 
         bookTable = new JTable(tableModel);
+        bookTable.setRowHeight(24);
+        bookTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        bookTable.setAutoCreateRowSorter(true);
+
+        // Center align ID, Quantities, and Year
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(SwingConstants.CENTER);
+        bookTable.getColumnModel().getColumn(0).setCellRenderer(centerRenderer);
+        bookTable.getColumnModel().getColumn(5).setCellRenderer(centerRenderer);
+        bookTable.getColumnModel().getColumn(6).setCellRenderer(centerRenderer);
+        bookTable.getColumnModel().getColumn(7).setCellRenderer(centerRenderer);
 
         bookTable.getSelectionModel().addListSelectionListener(e -> {
-
-            int selectedRow = bookTable.getSelectedRow();
-
-            if (selectedRow != -1) {
-
-                titleField.setText(
-                        tableModel.getValueAt(selectedRow, 1).toString()
-                );
-
-                authorField.setText(
-                        tableModel.getValueAt(selectedRow, 2).toString()
-                );
-
-                categoryField.setText(
-                        tableModel.getValueAt(selectedRow, 3).toString()
-                );
-
-                isbnField.setText(
-                        tableModel.getValueAt(selectedRow, 4).toString()
-                );
-
-                quantityField.setText(
-                        tableModel.getValueAt(selectedRow, 5).toString()
-                );
-
-                yearField.setText(
-                        tableModel.getValueAt(selectedRow, 7).toString()
-                );
+            if (!e.getValueIsAdjusting()) {
+                populateFieldsFromSelection();
             }
         });
 
         JScrollPane scrollPane = new JScrollPane(bookTable);
+        tableContainer.add(scrollPane, BorderLayout.CENTER);
 
-        JPanel tablePanel = new JPanel(new BorderLayout());
+        add(tableContainer, BorderLayout.CENTER);
+    }
 
-        tablePanel.add(searchPanel, BorderLayout.NORTH);
-        tablePanel.add(scrollPane, BorderLayout.CENTER);
+    private void populateFieldsFromSelection() {
+        int selectedRow = bookTable.getSelectedRow();
+        if (selectedRow != -1) {
+            int modelRow = bookTable.convertRowIndexToModel(selectedRow);
 
-        add(tablePanel, BorderLayout.CENTER);
+            titleField.setText(getSafeString(tableModel.getValueAt(modelRow, 1)));
+            authorField.setText(getSafeString(tableModel.getValueAt(modelRow, 2)));
+            categoryField.setText(getSafeString(tableModel.getValueAt(modelRow, 3)));
+            isbnField.setText(getSafeString(tableModel.getValueAt(modelRow, 4)));
+            quantityField.setText(getSafeString(tableModel.getValueAt(modelRow, 5)));
+            yearField.setText(getSafeString(tableModel.getValueAt(modelRow, 7)));
+        }
+    }
 
-
+    private String getSafeString(Object value) {
+        return value != null ? value.toString() : "";
     }
 
     private void addBook() {
-
         try {
-
             String title = titleField.getText().trim();
             String author = authorField.getText().trim();
             String category = categoryField.getText().trim();
             String isbn = isbnField.getText().trim();
+            String qtyText = quantityField.getText().trim();
+            String yearText = yearField.getText().trim();
 
-            int quantity = Integer.parseInt(quantityField.getText().trim());
-            int year = Integer.parseInt(yearField.getText().trim());
+            if (qtyText.isEmpty() || yearText.isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "Total Quantity and Published Year are required.",
+                        "Validation Error",
+                        JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            int quantity = Integer.parseInt(qtyText);
+            int year = Integer.parseInt(yearText);
 
             Book book = new Book(
                     title,
                     author,
-                    category,
-                    isbn,
+                    category.isEmpty() ? null : category,
+                    isbn.isEmpty() ? null : isbn,
                     quantity,
                     quantity,
                     year
             );
 
-            boolean success = bookService.addBook(book);
+            bookService.addBook(book);
 
-            if (success) {
+            JOptionPane.showMessageDialog(this,
+                    "Book added successfully!",
+                    "Success",
+                    JOptionPane.INFORMATION_MESSAGE);
 
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Book added successfully!"
-                );
+            clearFields();
+            loadBooks();
+
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this,
+                    "Total Quantity and Published Year must be valid integers.",
+                    "Input Error",
+                    JOptionPane.WARNING_MESSAGE);
+        } catch (ValidationException e) {
+            JOptionPane.showMessageDialog(this,
+                    e.getMessage(),
+                    "Validation Error",
+                    JOptionPane.WARNING_MESSAGE);
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this,
+                    "An unexpected error occurred while adding the book: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void updateBook() {
+        int selectedRow = bookTable.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this,
+                    "Please select a book from the table to update.",
+                    "Selection Required",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int modelRow = bookTable.convertRowIndexToModel(selectedRow);
+        int bookId = (int) tableModel.getValueAt(modelRow, 0);
+
+        try {
+            String title = titleField.getText().trim();
+            String author = authorField.getText().trim();
+            String category = categoryField.getText().trim();
+            String isbn = isbnField.getText().trim();
+            String qtyText = quantityField.getText().trim();
+            String yearText = yearField.getText().trim();
+
+            if (qtyText.isEmpty() || yearText.isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "Total Quantity and Published Year are required.",
+                        "Validation Error",
+                        JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            int quantity = Integer.parseInt(qtyText);
+            int year = Integer.parseInt(yearText);
+
+            Book book = new Book(
+                    bookId,
+                    title,
+                    author,
+                    category.isEmpty() ? null : category,
+                    isbn.isEmpty() ? null : isbn,
+                    quantity,
+                    0, // Service computes available quantity properly based on loans delta
+                    year
+            );
+
+            bookService.updateBook(book);
+
+            JOptionPane.showMessageDialog(this,
+                    "Book updated successfully!",
+                    "Success",
+                    JOptionPane.INFORMATION_MESSAGE);
+
+            clearFields();
+            loadBooks();
+
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this,
+                    "Total Quantity and Published Year must be valid integers.",
+                    "Input Error",
+                    JOptionPane.WARNING_MESSAGE);
+        } catch (ValidationException e) {
+            JOptionPane.showMessageDialog(this,
+                    e.getMessage(),
+                    "Validation Error",
+                    JOptionPane.WARNING_MESSAGE);
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this,
+                    "An unexpected error occurred while updating the book: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void deleteBook() {
+        int selectedRow = bookTable.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this,
+                    "Please select a book from the table to delete.",
+                    "Selection Required",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int modelRow = bookTable.convertRowIndexToModel(selectedRow);
+        int bookId = (int) tableModel.getValueAt(modelRow, 0);
+        String title = (String) tableModel.getValueAt(modelRow, 1);
+
+        int choice = JOptionPane.showConfirmDialog(
+                this,
+                "Are you sure you want to delete book '" + title + "' (ID: " + bookId + ")?",
+                "Confirm Delete",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE
+        );
+
+        if (choice == JOptionPane.YES_OPTION) {
+            try {
+                bookService.deleteBook(bookId);
+
+                JOptionPane.showMessageDialog(this,
+                        "Book deleted successfully!",
+                        "Success",
+                        JOptionPane.INFORMATION_MESSAGE);
 
                 clearFields();
                 loadBooks();
 
-            } else {
-
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Failed to add book."
-                );
+            } catch (ValidationException e) {
+                JOptionPane.showMessageDialog(this,
+                        e.getMessage(),
+                        "Unable to Delete",
+                        JOptionPane.WARNING_MESSAGE);
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(this,
+                        "Failed to delete book: " + e.getMessage(),
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE);
             }
-
-        } catch (NumberFormatException e) {
-
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Quantity and year must be valid numbers."
-            );
         }
     }
 
     private void loadBooks() {
-
         tableModel.setRowCount(0);
-
         List<Book> books = bookService.getAllBooks();
 
         for (Book book : books) {
-
             tableModel.addRow(new Object[]{
                     book.getBookId(),
                     book.getTitle(),
                     book.getAuthor(),
-                    book.getCategory(),
-                    book.getIsbn(),
+                    book.getCategory() != null ? book.getCategory() : "",
+                    book.getIsbn() != null ? book.getIsbn() : "",
+                    book.getQuantity(),
+                    book.getAvailableQuantity(),
+                    book.getPublishedYear()
+            });
+        }
+    }
+
+    private void loadSearchResults(String keyword) {
+        tableModel.setRowCount(0);
+        List<Book> books = bookService.searchBooks(keyword);
+
+        for (Book book : books) {
+            tableModel.addRow(new Object[]{
+                    book.getBookId(),
+                    book.getTitle(),
+                    book.getAuthor(),
+                    book.getCategory() != null ? book.getCategory() : "",
+                    book.getIsbn() != null ? book.getIsbn() : "",
                     book.getQuantity(),
                     book.getAvailableQuantity(),
                     book.getPublishedYear()
@@ -259,142 +407,12 @@ public class BookPanel extends JPanel {
     }
 
     private void clearFields() {
-
         titleField.setText("");
         authorField.setText("");
         categoryField.setText("");
         isbnField.setText("");
         quantityField.setText("");
         yearField.setText("");
-    }
-
-    private void updateBook() {
-
-        int selectedRow = bookTable.getSelectedRow();
-
-        if (selectedRow == -1) {
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Please select a book to update."
-            );
-            return;
-        }
-
-        try {
-
-            int bookId = (int) tableModel.getValueAt(selectedRow, 0);
-
-            String title = titleField.getText().trim();
-            String author = authorField.getText().trim();
-            String category = categoryField.getText().trim();
-            String isbn = isbnField.getText().trim();
-
-            int quantity = Integer.parseInt(quantityField.getText().trim());
-            int year = Integer.parseInt(yearField.getText().trim());
-
-            Book book = new Book(
-                    bookId,
-                    title,
-                    author,
-                    category,
-                    isbn,
-                    quantity,
-                    quantity,
-                    year
-            );
-
-            boolean success = bookService.updateBook(book);
-
-            if (success) {
-
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Book updated successfully!"
-                );
-
-                clearFields();
-                loadBooks();
-
-            } else {
-
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Failed to update book."
-                );
-            }
-
-        } catch (NumberFormatException e) {
-
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Quantity and year must be valid numbers."
-            );
-        }
-    }
-
-    private void deleteBook() {
-
-        int selectedRow = bookTable.getSelectedRow();
-
-        if (selectedRow == -1) {
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Please select a book to delete."
-            );
-            return;
-        }
-
-        int bookId = (int) tableModel.getValueAt(selectedRow, 0);
-
-        int choice = JOptionPane.showConfirmDialog(
-                this,
-                "Are you sure you want to delete this book?",
-                "Confirm Delete",
-                JOptionPane.YES_NO_OPTION
-        );
-
-        if (choice == JOptionPane.YES_OPTION) {
-
-            boolean success = bookService.deleteBook(bookId);
-
-            if (success) {
-
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Book deleted successfully!"
-                );
-
-                clearFields();
-                loadBooks();
-
-            } else {
-
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Failed to delete book."
-                );
-            }
-        }
-    }
-
-    private void loadSearchResults(String keyword) {
-
-        tableModel.setRowCount(0);
-
-        List<Book> books = bookService.searchBooks(keyword);
-
-        for (Book book : books) {
-
-            tableModel.addRow(new Object[]{
-                    book.getBookId(),
-                    book.getTitle(),
-                    book.getAuthor(),
-                    book.getCategory(),
-                    book.getIsbn(),
-                    book.getQuantity(),
-                    book.getAvailableQuantity(),
-                    book.getPublishedYear()
-            });
-        }
+        bookTable.clearSelection();
     }
 }

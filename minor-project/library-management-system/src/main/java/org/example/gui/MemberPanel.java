@@ -2,8 +2,10 @@ package org.example.gui;
 
 import org.example.model.Member;
 import org.example.service.MemberService;
+import org.example.util.ValidationException;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.List;
@@ -16,17 +18,15 @@ public class MemberPanel extends JPanel {
     private JTextField emailField;
     private JTextField phoneField;
     private JTextField addressField;
-
     private JTextField searchField;
 
     private JTable memberTable;
     private DefaultTableModel tableModel;
 
     public MemberPanel() {
+        this.memberService = new MemberService();
 
-        memberService = new MemberService();
-
-        setLayout(new BorderLayout(10, 10));
+        setLayout(new BorderLayout(12, 12));
         setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
         createForm();
@@ -36,64 +36,91 @@ public class MemberPanel extends JPanel {
     }
 
     private void createForm() {
+        JPanel formContainer = new JPanel(new BorderLayout(8, 8));
+        formContainer.setBorder(BorderFactory.createTitledBorder("Member Details"));
 
-        JPanel formPanel = new JPanel(new GridLayout(2, 4, 10, 10));
+        JPanel formGrid = new JPanel(new GridLayout(2, 4, 12, 10));
+        formGrid.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         nameField = new JTextField();
         emailField = new JTextField();
         phoneField = new JTextField();
         addressField = new JTextField();
 
-        formPanel.add(new JLabel("Name:"));
-        formPanel.add(nameField);
+        formGrid.add(new JLabel("Name: *"));
+        formGrid.add(nameField);
 
-        formPanel.add(new JLabel("Email:"));
-        formPanel.add(emailField);
+        formGrid.add(new JLabel("Email: *"));
+        formGrid.add(emailField);
 
-        formPanel.add(new JLabel("Phone:"));
-        formPanel.add(phoneField);
+        formGrid.add(new JLabel("Phone (10 digits):"));
+        formGrid.add(phoneField);
 
-        formPanel.add(new JLabel("Address:"));
-        formPanel.add(addressField);
+        formGrid.add(new JLabel("Address:"));
+        formGrid.add(addressField);
+
+        formContainer.add(formGrid, BorderLayout.CENTER);
+
+        // Buttons
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 8));
 
         JButton addButton = new JButton("Add Member");
         JButton updateButton = new JButton("Update Member");
         JButton deleteButton = new JButton("Delete Member");
-        JButton clearButton = new JButton("Clear");
-
-        JPanel buttonPanel = new JPanel(new FlowLayout());
+        JButton clearButton = new JButton("Clear Fields");
+        JButton refreshButton = new JButton("Refresh");
 
         buttonPanel.add(addButton);
         buttonPanel.add(updateButton);
         buttonPanel.add(deleteButton);
         buttonPanel.add(clearButton);
+        buttonPanel.add(refreshButton);
 
-        JPanel topPanel = new JPanel(new BorderLayout(10, 10));
+        formContainer.add(buttonPanel, BorderLayout.SOUTH);
 
-        topPanel.add(formPanel, BorderLayout.CENTER);
-        topPanel.add(buttonPanel, BorderLayout.SOUTH);
-
-        add(topPanel, BorderLayout.NORTH);
+        add(formContainer, BorderLayout.NORTH);
 
         addButton.addActionListener(e -> addMember());
         updateButton.addActionListener(e -> updateMember());
         deleteButton.addActionListener(e -> deleteMember());
         clearButton.addActionListener(e -> clearFields());
+        refreshButton.addActionListener(e -> {
+            searchField.setText("");
+            loadMembers();
+        });
     }
 
     private void createTable() {
+        JPanel tableContainer = new JPanel(new BorderLayout(8, 8));
+        tableContainer.setBorder(BorderFactory.createTitledBorder("Registered Members"));
 
-        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-
-        searchField = new JTextField(25);
+        // Search Bar
+        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
+        searchField = new JTextField(24);
 
         JButton searchButton = new JButton("Search");
         JButton showAllButton = new JButton("Show All");
 
-        searchPanel.add(new JLabel("Search:"));
+        searchPanel.add(new JLabel("Search (Name / Email / Phone):"));
         searchPanel.add(searchField);
         searchPanel.add(searchButton);
         searchPanel.add(showAllButton);
+
+        tableContainer.add(searchPanel, BorderLayout.NORTH);
+
+        searchButton.addActionListener(e -> {
+            String keyword = searchField.getText().trim();
+            if (keyword.isEmpty()) {
+                loadMembers();
+            } else {
+                loadSearchResults(keyword);
+            }
+        });
+
+        showAllButton.addActionListener(e -> {
+            searchField.setText("");
+            loadMembers();
+        });
 
         String[] columns = {
                 "ID",
@@ -105,7 +132,6 @@ public class MemberPanel extends JPanel {
         };
 
         tableModel = new DefaultTableModel(columns, 0) {
-
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
@@ -113,249 +139,212 @@ public class MemberPanel extends JPanel {
         };
 
         memberTable = new JTable(tableModel);
+        memberTable.setRowHeight(24);
+        memberTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        memberTable.setAutoCreateRowSorter(true);
+
+        // Center align ID and Registration Date
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(SwingConstants.CENTER);
+        memberTable.getColumnModel().getColumn(0).setCellRenderer(centerRenderer);
+        memberTable.getColumnModel().getColumn(5).setCellRenderer(centerRenderer);
 
         memberTable.getSelectionModel().addListSelectionListener(e -> {
-
-            int selectedRow = memberTable.getSelectedRow();
-
-            if (selectedRow != -1) {
-
-                nameField.setText(
-                        tableModel.getValueAt(selectedRow, 1).toString()
-                );
-
-                emailField.setText(
-                        tableModel.getValueAt(selectedRow, 2).toString()
-                );
-
-                phoneField.setText(
-                        tableModel.getValueAt(selectedRow, 3).toString()
-                );
-
-                addressField.setText(
-                        tableModel.getValueAt(selectedRow, 4).toString()
-                );
+            if (!e.getValueIsAdjusting()) {
+                populateFieldsFromSelection();
             }
         });
 
         JScrollPane scrollPane = new JScrollPane(memberTable);
+        tableContainer.add(scrollPane, BorderLayout.CENTER);
 
-        JPanel tablePanel = new JPanel(new BorderLayout());
+        add(tableContainer, BorderLayout.CENTER);
+    }
 
-        tablePanel.add(searchPanel, BorderLayout.NORTH);
-        tablePanel.add(scrollPane, BorderLayout.CENTER);
+    private void populateFieldsFromSelection() {
+        int selectedRow = memberTable.getSelectedRow();
+        if (selectedRow != -1) {
+            int modelRow = memberTable.convertRowIndexToModel(selectedRow);
 
-        add(tablePanel, BorderLayout.CENTER);
+            nameField.setText(getSafeString(tableModel.getValueAt(modelRow, 1)));
+            emailField.setText(getSafeString(tableModel.getValueAt(modelRow, 2)));
+            phoneField.setText(getSafeString(tableModel.getValueAt(modelRow, 3)));
+            addressField.setText(getSafeString(tableModel.getValueAt(modelRow, 4)));
+        }
+    }
 
-        searchButton.addActionListener(e -> {
-
-            String keyword = searchField.getText().trim();
-
-            if (keyword.isEmpty()) {
-                loadMembers();
-            } else {
-                loadSearchResults(keyword);
-            }
-        });
-
-        showAllButton.addActionListener(e -> {
-
-            searchField.setText("");
-            loadMembers();
-        });
+    private String getSafeString(Object value) {
+        return value != null ? value.toString() : "";
     }
 
     private void addMember() {
+        try {
+            String name = nameField.getText().trim();
+            String email = emailField.getText().trim();
+            String phone = phoneField.getText().trim();
+            String address = addressField.getText().trim();
 
-        Member member = getMemberFromFields();
-
-        if (member == null) {
-            return;
-        }
-
-        boolean success = memberService.addMember(member);
-
-        if (success) {
-
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Member added successfully!"
+            Member member = new Member(
+                    name,
+                    email,
+                    phone.isEmpty() ? null : phone,
+                    address.isEmpty() ? null : address
             );
+
+            memberService.addMember(member);
+
+            JOptionPane.showMessageDialog(this,
+                    "Member added successfully!",
+                    "Success",
+                    JOptionPane.INFORMATION_MESSAGE);
 
             clearFields();
             loadMembers();
 
-        } else {
-
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Invalid member details or email already exists."
-            );
+        } catch (ValidationException e) {
+            JOptionPane.showMessageDialog(this,
+                    e.getMessage(),
+                    "Validation Error",
+                    JOptionPane.WARNING_MESSAGE);
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this,
+                    "An unexpected error occurred while adding member: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void updateMember() {
-
         int selectedRow = memberTable.getSelectedRow();
-
         if (selectedRow == -1) {
-
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Please select a member to update."
-            );
-
+            JOptionPane.showMessageDialog(this,
+                    "Please select a member from the table to update.",
+                    "Selection Required",
+                    JOptionPane.WARNING_MESSAGE);
             return;
         }
 
-        int memberId =
-                (int) tableModel.getValueAt(selectedRow, 0);
+        int modelRow = memberTable.convertRowIndexToModel(selectedRow);
+        int memberId = (int) tableModel.getValueAt(modelRow, 0);
 
-        Member member = getMemberFromFields();
+        try {
+            String name = nameField.getText().trim();
+            String email = emailField.getText().trim();
+            String phone = phoneField.getText().trim();
+            String address = addressField.getText().trim();
 
-        if (member == null) {
-            return;
-        }
-
-        member.setMemberId(memberId);
-
-        boolean success = memberService.updateMember(member);
-
-        if (success) {
-
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Member updated successfully!"
+            Member member = new Member(
+                    name,
+                    email,
+                    phone.isEmpty() ? null : phone,
+                    address.isEmpty() ? null : address
             );
+            member.setMemberId(memberId);
+
+            memberService.updateMember(member);
+
+            JOptionPane.showMessageDialog(this,
+                    "Member updated successfully!",
+                    "Success",
+                    JOptionPane.INFORMATION_MESSAGE);
 
             clearFields();
             loadMembers();
 
-        } else {
-
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Failed to update member."
-            );
+        } catch (ValidationException e) {
+            JOptionPane.showMessageDialog(this,
+                    e.getMessage(),
+                    "Validation Error",
+                    JOptionPane.WARNING_MESSAGE);
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this,
+                    "An unexpected error occurred while updating member: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void deleteMember() {
-
         int selectedRow = memberTable.getSelectedRow();
-
         if (selectedRow == -1) {
-
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Please select a member to delete."
-            );
-
+            JOptionPane.showMessageDialog(this,
+                    "Please select a member from the table to delete.",
+                    "Selection Required",
+                    JOptionPane.WARNING_MESSAGE);
             return;
         }
 
-        int memberId =
-                (int) tableModel.getValueAt(selectedRow, 0);
+        int modelRow = memberTable.convertRowIndexToModel(selectedRow);
+        int memberId = (int) tableModel.getValueAt(modelRow, 0);
+        String name = (String) tableModel.getValueAt(modelRow, 1);
 
         int choice = JOptionPane.showConfirmDialog(
                 this,
-                "Are you sure you want to delete this member?",
+                "Are you sure you want to delete member '" + name + "' (ID: " + memberId + ")?",
                 "Confirm Delete",
-                JOptionPane.YES_NO_OPTION
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE
         );
 
         if (choice == JOptionPane.YES_OPTION) {
+            try {
+                memberService.deleteMember(memberId);
 
-            boolean success =
-                    memberService.deleteMember(memberId);
-
-            if (success) {
-
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Member deleted successfully!"
-                );
+                JOptionPane.showMessageDialog(this,
+                        "Member deleted successfully!",
+                        "Success",
+                        JOptionPane.INFORMATION_MESSAGE);
 
                 clearFields();
                 loadMembers();
 
-            } else {
-
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Unable to delete member."
-                );
+            } catch (ValidationException e) {
+                JOptionPane.showMessageDialog(this,
+                        e.getMessage(),
+                        "Unable to Delete",
+                        JOptionPane.WARNING_MESSAGE);
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(this,
+                        "Failed to delete member: " + e.getMessage(),
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE);
             }
         }
     }
 
-    private Member getMemberFromFields() {
-
-        String name = nameField.getText().trim();
-        String email = emailField.getText().trim();
-        String phone = phoneField.getText().trim();
-        String address = addressField.getText().trim();
-
-        if (name.isEmpty() || email.isEmpty()) {
-
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Name and Email are required."
-            );
-
-            return null;
-        }
-
-        return new Member(
-                name,
-                email,
-                phone,
-                address
-        );
-    }
-
     private void loadMembers() {
-
         tableModel.setRowCount(0);
-
-        List<Member> members =
-                memberService.getAllMembers();
+        List<Member> members = memberService.getAllMembers();
 
         for (Member member : members) {
-
             tableModel.addRow(new Object[]{
                     member.getMemberId(),
                     member.getName(),
                     member.getEmail(),
-                    member.getPhone(),
-                    member.getAddress(),
+                    member.getPhone() != null ? member.getPhone() : "",
+                    member.getAddress() != null ? member.getAddress() : "",
                     member.getRegistrationDate()
             });
         }
     }
 
     private void loadSearchResults(String keyword) {
-
         tableModel.setRowCount(0);
-
-        List<Member> members =
-                memberService.searchMembers(keyword);
+        List<Member> members = memberService.searchMembers(keyword);
 
         for (Member member : members) {
-
             tableModel.addRow(new Object[]{
                     member.getMemberId(),
                     member.getName(),
                     member.getEmail(),
-                    member.getPhone(),
-                    member.getAddress(),
+                    member.getPhone() != null ? member.getPhone() : "",
+                    member.getAddress() != null ? member.getAddress() : "",
                     member.getRegistrationDate()
             });
         }
     }
 
     private void clearFields() {
-
         nameField.setText("");
         emailField.setText("");
         phoneField.setText("");
