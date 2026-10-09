@@ -1,0 +1,17 @@
+package com.banking.model;
+
+public enum AuditEventType {
+    LOGIN_SUCCESS,
+    LOGIN_FAILURE,
+    LOGOUT,
+    REGISTRATION,
+    TRANSFER_INITIATED,
+    OTP_GENERATED,
+    OTP_VERIFIED,
+    OTP_FAILED,
+    TRANSFER_SUCCESS,
+    TRANSFER_FAILED,
+    ACCOUNT_CREATED,
+    STATUS_CHANGE,
+    SYSTEM_INIT
+}

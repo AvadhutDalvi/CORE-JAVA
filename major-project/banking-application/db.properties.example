@@ -1,0 +1,7 @@
+# Database Configuration for Banking Application
+# Replace with your local MySQL credentials or set environment variables:
+# DB_URL, DB_USER, DB_PASSWORD
+
+db.url=jdbc:mysql://localhost:3306/banking_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+db.user=root
+db.password=root@123
